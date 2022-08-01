@@ -63,8 +63,8 @@ void rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
                 break;
             }
         }
-        if (IS_LAYER_ON(CAP)) {
-            rgb_matrix_layer_keys(CAP, rgb, led_min, led_max);
+        if (IS_LAYER_ON(CAP_LAYER)) {
+            rgb_matrix_layer_keys(CAP_LAYER, rgb, led_min, led_max);
         }
     }
 

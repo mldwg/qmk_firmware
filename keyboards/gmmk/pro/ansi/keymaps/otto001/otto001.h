@@ -9,11 +9,13 @@
 enum custom_keycodes {
   VRSN = SAFE_RANGE,
 
+  CCAP, //custom capslock
+
   // Umlaute
   DE_AE,
   DE_UE,
   DE_OE,
-  DE_SZ,
+  DE_SS,
   DE_EUR,
 
   LINUX,
@@ -36,10 +38,11 @@ enum os_types {
 
 enum layout_names {
     DEF = 0,
-    CAP,     //capslock mod
+    CAP_LAYER,     //capslock mod
     GM,      // gaming
     GMC,     // gaming capslock mod
     FN,      // fn layer
+    L_MACOS,
 };
 
 extern int os_type; 
