@@ -35,8 +35,33 @@ void rgb_matrix_layer_keys(uint8_t layer, const RGB rgb, uint8_t led_min, uint8_
 void rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     if (!IS_LAYER_ON(GM)) {
 
-        const HSV hsv = {234, 255, 255};
+        HSV hsv;
+        switch (os_type)
+            {
+            case OS_LINUX:
+                hsv.h = 234;
+                hsv.s = 255;
+                hsv.v = 255;
+                break;
+            case OS_WIN:
+                hsv.h = 148;
+                hsv.s = 255;
+                hsv.v = 255;
+                break;
+            case OS_MACOS:
+                hsv.h = 0;
+                hsv.s = 0;
+                hsv.v = 255;
+                break;
+            default:
+                hsv.h = 255;
+                hsv.s = 255;
+                hsv.v = 255;
+                break;
+            }
+         
         const RGB rgb = hsv_to_rgb(hsv);
+        
         for (int i = 0; i < DRIVER_LED_TOTAL; i++) {
             RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
         }
@@ -46,23 +71,6 @@ void rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
             }
         }
 
-        if (IS_LAYER_ON(FN)) {
-            rgb_matrix_layer_keys(FN, rgb, led_min, led_max);
-            switch (os_type)
-            {
-            case OS_LINUX:
-                RGB_MATRIX_INDICATOR_SET_COLOR(53, 255, 255, 255);
-                break;
-            case OS_WIN:
-                RGB_MATRIX_INDICATOR_SET_COLOR(14, 255, 255, 255);
-                break;
-            case OS_MACOS:
-                RGB_MATRIX_INDICATOR_SET_COLOR(43, 255, 255, 255);
-                break;
-            default:
-                break;
-            }
-        }
         if (IS_LAYER_ON(CAP_LAYER)) {
             rgb_matrix_layer_keys(CAP_LAYER, rgb, led_min, led_max);
         }
