@@ -9,7 +9,8 @@
 enum custom_keycodes {
   VRSN = SAFE_RANGE,
 
-  CCAP, //custom capslock
+  CAPS_DY, // Toggle capslock remap
+  CAPS_TG, // Toggle capslock remap
 
   // Umlaute
   DE_AE,
@@ -22,27 +23,19 @@ enum custom_keycodes {
   WIN,
   MACOS,
   USINTL,  // type "setxkbmap us intl"
-  SPAM_E,  // Valheim E spam
-  LAY_G,   // gaming layer
-  LAY_P,   // productivity layer
+
   RGB_UND, // toggle RGB underglow
+
+  EUROKEY, // toggle eurokeys for the current OS
 
   SP_BSPC, // Spam backspace
 };
 
-enum os_types {
-  OS_LINUX = 0,
-  OS_WIN,
-  OS_MACOS
-};
 
 enum layout_names {
     DEF = 0,
     CAP_LAYER,     //capslock mod
-    GM,      // gaming
-    GMC,     // gaming capslock mod
     FN,      // fn layer
     L_MACOS,
 };
-
-extern int os_type; 
+extern os_variant_t os_variant;
