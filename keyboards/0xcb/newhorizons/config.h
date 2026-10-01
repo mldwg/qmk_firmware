@@ -1,0 +1,32 @@
+// Copyright 2022 Conor Burns (@Conor-Burns)
+// Copyright 2026 Matteo Ludwig (@mldwg)
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+// Modified 2026-10-01 by Matteo Ludwig: ported from Vial to upstream QMK
+
+#pragma once
+
+#define RGB_MATRIX_STARTUP_MODE RGB_MATRIX_BREATHING
+#define RGB_MATRIX_STARTUP_HUE 152
+#define RGB_MATRIX_STARTUP_SAT 232
+#define RGB_MATRIX_STARTUP_VAL 255
+#define RGB_MATRIX_STARTUP_SPD 50
+
+#define ENABLE_RGB_MATRIX_ALPHAS_MODS
+#define ENABLE_RGB_MATRIX_GRADIENT_UP_DOWN
+#define ENABLE_RGB_MATRIX_GRADIENT_LEFT_RIGHT
+#define ENABLE_RGB_MATRIX_BREATHING
+#define ENABLE_RGB_MATRIX_BAND_VAL
+#define ENABLE_RGB_MATRIX_BAND_SPIRAL_VAL
+#define ENABLE_RGB_MATRIX_CYCLE_ALL
+#define ENABLE_RGB_MATRIX_CYCLE_LEFT_RIGHT
+#define ENABLE_RGB_MATRIX_CYCLE_UP_DOWN
+#define ENABLE_RGB_MATRIX_CYCLE_OUT_IN
+#define ENABLE_RGB_MATRIX_CYCLE_PINWHEEL
+#define ENABLE_RGB_MATRIX_RAINBOW_PINWHEELS
+#define ENABLE_RGB_MATRIX_RAINDROPS
+
+/* Mechanical locking support. Use KC_LCAP, KC_LNUM or KC_LSCR instead in keymap */
+#define LOCKING_SUPPORT_ENABLE
+/* Locking resynchronize hack */
+#define LOCKING_RESYNC_ENABLE
