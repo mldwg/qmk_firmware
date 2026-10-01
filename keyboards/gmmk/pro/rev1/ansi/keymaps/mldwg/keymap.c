@@ -40,9 +40,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_LCTL, KC_LALT, KC_LGUI,                            KC_SPC,                             KC_RGUI, KC_RALT, MO(FN), KC_LEFT, KC_DOWN, KC_RGHT
     ),
     [FN] = LAYOUT(
-        _______, KC_BRID, KC_BRIU, KC_MCTL, KC_LPAD, _______, _______, KC_MPRV, KC_MPLY, KC_MNXT, KC_MUTE, KC_VOLD, KC_VOLU, _______,          _______,
-        _______, KC_KP_1, KC_KP_2, KC_KP_3, KC_KP_4, KC_KP_5, KC_KP_6, KC_KP_7, KC_KP_8, KC_KP_9, KC_KP_0, _______, _______, SP_BSPC,          _______,
-        _______, _______, WIN    , EUROKEY, RM_TOGG, _______, _______, RGB_UND, _______, _______, _______, _______, _______, QK_BOOT,          _______,
+        _______, KC_BRID, KC_BRIU, OVERVW , LAUNCH , _______, _______, KC_MPRV, KC_MPLY, KC_MNXT, KC_MUTE, KC_VOLD, KC_VOLU, _______,          _______,
+        _______, KC_KP_1, KC_KP_2, KC_KP_3, KC_KP_4, KC_KP_5, KC_KP_6, KC_KP_7, KC_KP_8, KC_KP_9, KC_KP_0, _______, _______, SP_BSPC,          KC_INS ,
+        _______, _______, WIN    , EUROKEY, RM_TOGG, _______, _______, RGB_UND, _______, _______, SCRSHOT, _______, _______, QK_BOOT,          _______,
         CAPS_TG, _______, _______, _______, _______, _______, _______, _______, _______, LINUX  , _______, _______,          _______,          RM_VALU,
         _______,          _______, RM_HUEU, _______, _______, _______, NK_TOGG, MACOS  , _______, _______, _______,          _______, RM_NEXT, RM_VALD,
         _______, _______, _______,                            KC_MPLY,                            _______, _______, _______, RM_SPDD, RM_PREV, RM_SPDU

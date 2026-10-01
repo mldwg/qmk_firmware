@@ -361,8 +361,51 @@ bool handle_umlaut(uint16_t keycode, keyrecord_t *record) {
     }
 }
 
-// With the capslock remap on, a short capslock tap opens the window overview:
-// Mission Control on macOS (App Exposé while Cmd is held), Task View on Windows.
+// Window overview: Mission Control on macOS (App Exposé while Cmd is held),
+// Task View on Windows, the activities overview (Super) on Linux.
+void send_overview(void) {
+    switch (user_config.os_variant) {
+        case OS_MACOS:
+            register_mods(MOD_BIT(KC_LCTL));
+            if (get_mods() & MOD_BIT(KC_LGUI)) {
+                unregister_mods(MOD_BIT(KC_LGUI));
+                tap_code(KC_DOWN);
+                register_mods(MOD_BIT(KC_LGUI));
+            } else {
+                tap_code(KC_UP);
+            }
+            unregister_mods(MOD_BIT(KC_LCTL));
+            break;
+        case OS_WINDOWS:
+            tap_code16(LGUI(KC_TAB));
+            break;
+        case OS_LINUX:
+            tap_code(KC_LGUI);
+            break;
+        default:
+            break;
+    }
+}
+
+// App launcher: Launchpad on macOS, the Start menu / Super on Windows and Linux.
+void send_launcher(void) {
+    if (user_config.os_variant == OS_MACOS) {
+        tap_code(KC_LPAD);
+    } else {
+        tap_code(KC_LGUI);
+    }
+}
+
+// Print Screen; macOS has none, so open its screenshot toolbar instead.
+void send_screenshot(void) {
+    if (user_config.os_variant == OS_MACOS) {
+        tap_code16(LGUI(LSFT(KC_5)));
+    } else {
+        tap_code(KC_PSCR);
+    }
+}
+
+// With the capslock remap on, a short capslock tap opens the window overview.
 void process_caps_tap_overview(uint16_t keycode, keyrecord_t *record) {
     static uint16_t started_pressing;
     static bool     tapping;
@@ -375,24 +418,7 @@ void process_caps_tap_overview(uint16_t keycode, keyrecord_t *record) {
                 started_pressing = timer_read();
                 tapping          = true;
             } else if (tapping && timer_elapsed(started_pressing) < TAPPING_TERM) {
-                switch (user_config.os_variant) {
-                    case OS_MACOS:
-                        register_mods(MOD_BIT(KC_LCTL));
-                        if (get_mods() & MOD_BIT(KC_LGUI)) {
-                            unregister_mods(MOD_BIT(KC_LGUI));
-                            tap_code(KC_DOWN);
-                            register_mods(MOD_BIT(KC_LGUI));
-                        } else {
-                            tap_code(KC_UP);
-                        }
-                        unregister_mods(MOD_BIT(KC_LCTL));
-                        break;
-                    case OS_WINDOWS:
-                        tap_code16(LGUI(KC_TAB));
-                        break;
-                    default:
-                        break;
-                }
+                send_overview();
             }
             break;
         default:
@@ -591,6 +617,22 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case EUROKEY:
             if (record->event.pressed) {
                 toggle_eurokeys();
+            }
+            return false;
+
+        case OVERVW:
+            if (record->event.pressed) {
+                send_overview();
+            }
+            return false;
+        case LAUNCH:
+            if (record->event.pressed) {
+                send_launcher();
+            }
+            return false;
+        case SCRSHOT:
+            if (record->event.pressed) {
+                send_screenshot();
             }
             return false;
 

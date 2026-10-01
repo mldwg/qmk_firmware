@@ -26,6 +26,10 @@ enum custom_keycodes {
 
   EUROKEY, // toggle eurokeys for the current OS
 
+  OVERVW,  // per-OS window overview (Mission Control / Task View / Super)
+  LAUNCH,  // per-OS app launcher (Launchpad / Start / Super)
+  SCRSHOT, // Print Screen, or the screenshot toolbar on macOS
+
   SP_BSPC, // Spam backspace
 };
 
