@@ -1,4 +1,3 @@
-#include "print.h"
 #include "process_record.h"
 #include <eeprom.h>
 
@@ -6,18 +5,31 @@ static uint16_t spam_key       = KC_TRNS;
 static uint16_t spam_key_timer = 0;
 uint8_t         spam_delay     = 12;
 
-static bool alt_r_flipped = true;
+static bool alt_r_flipped = false;
 static bool alt_r_pressed = false;
 
 static uint16_t caps_dy_timer      = 0;
 static bool     caps_dy_tap        = false;
 static bool     caps_dy_altgr_held = false;
 
-static uint16_t fn_timer = 0;
-static bool     fn_tap   = false;
+static uint16_t fn_timer       = 0;
+static uint16_t fn_last_tap    = 0;
+static bool     fn_tap         = false;
+static bool     fn_tapped_once = false;
+
+static uint16_t numlock_timer    = 0;
+static uint8_t  numlock_attempts = 0;
 
 // Minimum time (ms) since power-on before a deferred user config write is done.
 #define WRITE_USER_CONFIG_MIN_UPTIME 30000
+
+// Num Lock is kept on (except on macOS, which has none), so the FN keypad
+// number row types digits. Wait for the host's initial LED report and OS
+// detection before acting, and give up after a few taps on hosts that never
+// report Num Lock.
+#define NUMLOCK_STARTUP_DELAY 2000
+#define NUMLOCK_RETRY_MS 500
+#define NUMLOCK_MAX_ATTEMPTS 3
 
 const uint8_t PROGMEM underglow_leds[12] = {67, 68, 70, 71, 76, 77, 83, 84, 87, 88, 91, 92};
 
@@ -36,6 +48,8 @@ typedef union {
         bool    eurokeys_linux : 1;
         bool    eurokeys_windows : 1;
         bool    eurokeys_macos : 1;
+        // all lighting off (FN+R), independent of rgb_underglow (FN+U)
+        bool    rgb_off : 1;
     };
 } user_config_t;
 
@@ -51,6 +65,7 @@ void eeconfig_init_user(void) {
     // Set default values on first flash/reset
     user_config.version        = 1;
     user_config.rgb_underglow  = false;
+    user_config.rgb_off        = false;
     user_config.capslock_remap = true;
     user_config.os_variant     = OS_LINUX;
 
@@ -91,9 +106,10 @@ void toggle_eurokeys(void) {
     write_user_config();
 }
 
+// Only the flag changes; the matrix keeps running its stored effect (hidden by
+// the indicator callback), so the saved animation is never overwritten.
 void enable_rgb_underglow(bool write_eeprom) {
     user_config.rgb_underglow = true;
-    rgb_matrix_reload_from_eeprom();
     if (write_eeprom) {
         write_user_config();
     }
@@ -101,7 +117,6 @@ void enable_rgb_underglow(bool write_eeprom) {
 
 void disable_rgb_underglow(bool write_eeprom) {
     user_config.rgb_underglow = false;
-    rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
     if (write_eeprom) {
         write_user_config();
     }
@@ -109,9 +124,9 @@ void disable_rgb_underglow(bool write_eeprom) {
 
 void toggle_rgb_underglow(bool write_eeprom) {
     if (user_config.rgb_underglow) {
-        disable_rgb_underglow(true);
+        disable_rgb_underglow(write_eeprom);
     } else {
-        enable_rgb_underglow(true);
+        enable_rgb_underglow(write_eeprom);
     }
 }
 
@@ -122,9 +137,10 @@ void keyboard_post_init_user(void) {
         eeconfig_init_user(); // reset if version mismatch
     }
 
-    if (!user_config.rgb_underglow) {
-        disable_rgb_underglow(false);
-    }
+    // RM_TOGG is handled via user_config.rgb_off; the matrix itself must stay
+    // enabled so the indicators keep working. Recovers boards where an earlier
+    // RGB toggle persisted "disabled".
+    rgb_matrix_enable_noeeprom();
 }
 
 void set_mod(uint8_t mod, bool state) {
@@ -156,6 +172,13 @@ bool process_detected_host_os_user(os_variant_t detected_os) {
         write_user_config_on_keypress = true;
     }
     return false;
+}
+
+// The right alt flip works around dead keys of the us-intl layout on Linux.
+// With eurokeys the host uses a layout without that problem, where flipping
+// would produce wrong characters, so the two are mutually exclusive.
+bool use_alt_r_flip(void) {
+    return user_config.os_variant == OS_LINUX && !get_eurokeys();
 }
 
 bool press_with_flipped_atr_r_ex(uint16_t keycode, keyrecord_t *record, bool condition) {
@@ -237,9 +260,15 @@ bool handle_umlaut_macos(uint16_t keycode, keyrecord_t *record) {
             return false;
         case DE_SS:
             if (record->event.pressed) {
+                // Shift+Option+S is a different character, so drop shift
+                uint8_t shift = get_mods() & MOD_MASK_SHIFT;
+                unregister_mods(shift);
+
                 register_mods(MOD_BIT(KC_LALT));
                 tap_code(KC_S);
                 unregister_mods(MOD_BIT(KC_LALT));
+
+                register_mods(shift);
             }
             return false;
         case DE_EUR:
@@ -255,6 +284,11 @@ bool handle_umlaut_macos(uint16_t keycode, keyrecord_t *record) {
 }
 
 void send_alt_numpad_code_windows(uint16_t code) {
+    // Held modifiers break the alt code; with Shift, Windows even turns the
+    // keypad digits into navigation keys. Callers read Shift before this.
+    uint8_t mods = get_mods();
+    unregister_mods(mods);
+
     register_code(KC_LALT); // Hold Left Alt
 
     // Send each digit via keypad
@@ -264,6 +298,8 @@ void send_alt_numpad_code_windows(uint16_t code) {
     }
 
     unregister_code(KC_LALT); // Release Alt
+
+    register_mods(mods);
 }
 
 bool handle_umlaut_windows(uint16_t keycode, keyrecord_t *record) {
@@ -325,9 +361,11 @@ bool handle_umlaut(uint16_t keycode, keyrecord_t *record) {
     }
 }
 
-void process_record_user_extra_macos(uint16_t keycode, keyrecord_t *record) {
+// With the capslock remap on, a short capslock tap opens the window overview:
+// Mission Control on macOS (App Exposé while Cmd is held), Task View on Windows.
+void process_caps_tap_overview(uint16_t keycode, keyrecord_t *record) {
     static uint16_t started_pressing;
-    static bool     mission_control;
+    static bool     tapping;
     if (!user_config.capslock_remap) {
         return;
     }
@@ -335,21 +373,30 @@ void process_record_user_extra_macos(uint16_t keycode, keyrecord_t *record) {
         case CAPS_DY:
             if (record->event.pressed) {
                 started_pressing = timer_read();
-                mission_control  = true;
-            } else if (mission_control && timer_elapsed(started_pressing) < TAPPING_TERM) {
-                register_mods(MOD_BIT(KC_LCTL));
-                if (get_mods() & MOD_BIT(KC_LGUI)) {
-                    unregister_mods(MOD_BIT(KC_LGUI));
-                    tap_code(KC_DOWN);
-                    register_mods(MOD_BIT(KC_LGUI));
-                } else {
-                    tap_code(KC_UP);
+                tapping          = true;
+            } else if (tapping && timer_elapsed(started_pressing) < TAPPING_TERM) {
+                switch (user_config.os_variant) {
+                    case OS_MACOS:
+                        register_mods(MOD_BIT(KC_LCTL));
+                        if (get_mods() & MOD_BIT(KC_LGUI)) {
+                            unregister_mods(MOD_BIT(KC_LGUI));
+                            tap_code(KC_DOWN);
+                            register_mods(MOD_BIT(KC_LGUI));
+                        } else {
+                            tap_code(KC_UP);
+                        }
+                        unregister_mods(MOD_BIT(KC_LCTL));
+                        break;
+                    case OS_WINDOWS:
+                        tap_code16(LGUI(KC_TAB));
+                        break;
+                    default:
+                        break;
                 }
-                unregister_mods(MOD_BIT(KC_LCTL));
             }
             break;
         default:
-            mission_control = false;
+            tapping = false;
     }
 }
 
@@ -366,8 +413,8 @@ void process_caps_dy_altgr(keyrecord_t *record) {
         unregister_mods(MOD_BIT(KC_RALT));
         caps_dy_altgr_held = false;
 
-        // With the remap on, the tap action is the per-OS remap (mission
-        // control on macOS); without it, the tap is a real capslock.
+        // With the remap on, the tap is handled by process_caps_tap_overview;
+        // without it, the tap is a real capslock.
         if (caps_dy_tap && !user_config.capslock_remap && timer_elapsed(caps_dy_timer) < TAPPING_TERM) {
             tap_code(KC_CAPS);
         }
@@ -376,17 +423,29 @@ void process_caps_dy_altgr(keyrecord_t *record) {
 }
 
 // macOS has no way to receive a real Fn key (that is an Apple vendor HID
-// usage), but it treats this consumer usage as the Globe key. Tapping FN sends
-// it; holding FN is still just the FN layer.
+// usage), but it treats this consumer usage as the Globe key. Double-tapping FN
+// sends it; a single tap does nothing and holding FN is still the FN layer.
 void process_fn_globe(keyrecord_t *record) {
     if (record->event.pressed) {
+        // The second tap has to follow the first one quickly
+        if (fn_tapped_once && timer_elapsed(fn_last_tap) >= TAPPING_TERM) {
+            fn_tapped_once = false;
+        }
         fn_timer = timer_read();
         fn_tap   = true;
     } else {
         if (fn_tap && timer_elapsed(fn_timer) < TAPPING_TERM) {
-            host_consumer_send(AC_NEXT_KEYBOARD_LAYOUT_SELECT);
-            wait_ms(10);
-            host_consumer_send(0);
+            if (fn_tapped_once) {
+                host_consumer_send(AC_NEXT_KEYBOARD_LAYOUT_SELECT);
+                wait_ms(10);
+                host_consumer_send(0);
+                fn_tapped_once = false;
+            } else {
+                fn_tapped_once = true;
+                fn_last_tap    = timer_read();
+            }
+        } else {
+            fn_tapped_once = false;
         }
         fn_tap = false;
     }
@@ -400,7 +459,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             process_fn_globe(record);
         }
     } else if (record->event.pressed) {
-        fn_tap = false; // FN is being used as a layer, not tapped
+        // FN is being used as a layer, or another key broke up the double tap
+        fn_tap         = false;
+        fn_tapped_once = false;
     }
 
     // Run before everything else, so the AltGr hold is already released by the
@@ -414,9 +475,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         caps_dy_tap = false; // any other key means capslock is being held, not tapped
     }
 
-    if (user_config.os_variant == OS_MACOS) {
-        process_record_user_extra_macos(keycode, record);
-    }
+    process_caps_tap_overview(keycode, record);
 
     // Delay the deferred write until the keyboard has been up for a while, to
     // avoid writing to EEPROM during the initial power-on burst.
@@ -455,39 +514,46 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
         case LINUX:
-            user_config.os_variant = OS_LINUX;
-            write_user_config();
+            if (record->event.pressed) {
+                user_config.os_variant = OS_LINUX;
+                write_user_config();
+            }
             return false;
         case WIN:
-            user_config.os_variant = OS_WINDOWS;
-            write_user_config();
+            if (record->event.pressed) {
+                user_config.os_variant = OS_WINDOWS;
+                write_user_config();
+            }
             return false;
         case MACOS:
-            user_config.os_variant = OS_MACOS;
-            write_user_config();
+            if (record->event.pressed) {
+                user_config.os_variant = OS_MACOS;
+                write_user_config();
+            }
             return false;
 
         case KC_RALT:
-            if (user_config.os_variant == OS_LINUX) {
+            if (use_alt_r_flip()) {
                 alt_r_pressed        = record->event.pressed;
                 bool new_alt_r_state = (alt_r_pressed || alt_r_flipped) && !(alt_r_pressed && alt_r_flipped);
                 set_mod(MOD_BIT(KC_RALT), new_alt_r_state);
                 return false;
             }
+            return true;
 
         case KC_QUOT:
-            if (user_config.os_variant == OS_LINUX) {
+            if (use_alt_r_flip()) {
                 return press_with_flipped_atr_r(KC_QUOT, record);
             }
             return true;
         case KC_GRV:
-            if (user_config.os_variant == OS_LINUX) {
+            if (use_alt_r_flip()) {
                 return press_with_flipped_atr_r(KC_GRV, record);
             }
             return true;
 
         case KC_6:
-            if (user_config.os_variant == OS_LINUX) {
+            if (use_alt_r_flip()) {
                 return press_with_flipped_atr_r_ex(KC_6, record, (mods & MOD_MASK_SHIFT) && !(mods & MOD_MASK_C_LA_G));
             }
             return true;
@@ -514,6 +580,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
+        case RM_TOGG:
+            // Never let process_rgb_matrix disable the matrix, see rgb_off.
+            if (record->event.pressed) {
+                user_config.rgb_off = !user_config.rgb_off;
+                write_user_config();
+            }
+            return false;
+
         case EUROKEY:
             if (record->event.pressed) {
                 toggle_eurokeys();
@@ -531,6 +605,20 @@ void matrix_scan_user(void) {
         tap_code(spam_key);
         spam_key_timer = timer_read();
     }
+
+    // Polled rather than in led_update_user, so it also covers boot, OS
+    // switches and the user turning Num Lock off. Seeing it on resets the
+    // attempt counter.
+    if (user_config.os_variant != OS_MACOS && timer_read32() > NUMLOCK_STARTUP_DELAY) {
+        if (host_keyboard_led_state().num_lock) {
+            numlock_attempts = 0;
+        } else if (numlock_attempts < NUMLOCK_MAX_ATTEMPTS && timer_elapsed(numlock_timer) > NUMLOCK_RETRY_MS && !get_mods()) {
+            // Only with no modifiers held: Ctrl+Num Lock is Pause on Windows
+            tap_code(KC_NUM_LOCK);
+            numlock_timer = timer_read();
+            numlock_attempts++;
+        }
+    }
 }
 
 void sidebar_rgb_underglow(uint8_t led_min, uint8_t led_max) {
@@ -539,24 +627,21 @@ void sidebar_rgb_underglow(uint8_t led_min, uint8_t led_max) {
         case OS_LINUX:
             hsv.h = 234;
             hsv.s = 255;
-            hsv.v = 255;
             break;
         case OS_WINDOWS:
             hsv.h = 148;
             hsv.s = 255;
-            hsv.v = 255;
             break;
         case OS_MACOS:
             hsv.h = 0;
             hsv.s = 0;
-            hsv.v = 255;
             break;
         default:
             hsv.h = 255;
             hsv.s = 255;
-            hsv.v = 255;
             break;
     }
+    hsv.v         = rgb_matrix_get_val(); // follow the user's brightness setting
     const RGB rgb = hsv_to_rgb(hsv);
     for (int i = led_min; i < led_max; i++) {
         RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
@@ -569,15 +654,26 @@ void sidebar_rgb_underglow(uint8_t led_min, uint8_t led_max) {
 
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     if (layer_state_is(FN)) {
-        // While FN is held, everything but the underglow is off, so the enabled
-        // toggles stand out as white keys.
-        sidebar_rgb_underglow(led_min, led_max);
+        // While FN is held, the enabled toggles show as white keys. With the
+        // animation on it keeps running underneath, so RGB changes made on the
+        // FN layer are visible right away; otherwise everything but the
+        // underglow is off.
+        if (user_config.rgb_off || !user_config.rgb_underglow) {
+            sidebar_rgb_underglow(led_min, led_max);
+        }
 
         if (get_eurokeys()) {
             RGB_MATRIX_INDICATOR_SET_COLOR(LED_INDEX_E, 255, 255, 255);
         }
         if (user_config.capslock_remap) {
             RGB_MATRIX_INDICATOR_SET_COLOR(LED_INDEX_CAPS, 255, 255, 255);
+        }
+        return false;
+    }
+
+    if (user_config.rgb_off) {
+        for (int i = led_min; i < led_max; i++) {
+            RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
         }
         return false;
     }

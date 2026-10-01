@@ -1,9 +1,7 @@
 #pragma once
-#define UNICODE_SELECTED_MODES UC_LNX
 
 #include QMK_KEYBOARD_H
 
-#define LAYER_MASK(LAYER) ((layer_state_t)1 << LAYER)
 #define MOD_MASK_C_LA_G (MOD_MASK_CG | MOD_BIT(KC_LALT))
 
 enum custom_keycodes {
@@ -36,6 +34,4 @@ enum layout_names {
     DEF = 0,
     CAP_LAYER,     //capslock mod
     FN,      // fn layer
-    L_MACOS,
 };
-extern os_variant_t os_variant;

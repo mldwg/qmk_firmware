@@ -35,25 +35,25 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_ESC,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,           KC_MUTE,
         KC_GRV,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,          KC_HOME,
         KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_LBRC, KC_RBRC, KC_BSLS,          KC_END,
-        CAPS_DY,  KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,          KC_ENT,           KC_PGUP,
+        CAPS_DY, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,          KC_ENT,           KC_PGUP,
         KC_LSFT,          KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH,          KC_RSFT, KC_UP,   KC_PGDN,
-        KC_LCTL, KC_LALT, KC_LGUI,                            KC_SPC,                             KC_RALT, MO(FN),  KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
+        KC_LCTL, KC_LALT, KC_LGUI,                            KC_SPC,                             KC_RGUI, KC_RALT, MO(FN), KC_LEFT, KC_DOWN, KC_RGHT
     ),
     [FN] = LAYOUT(
         _______, KC_BRID, KC_BRIU, KC_MCTL, KC_LPAD, _______, _______, KC_MPRV, KC_MPLY, KC_MNXT, KC_MUTE, KC_VOLD, KC_VOLU, _______,          _______,
         _______, KC_KP_1, KC_KP_2, KC_KP_3, KC_KP_4, KC_KP_5, KC_KP_6, KC_KP_7, KC_KP_8, KC_KP_9, KC_KP_0, _______, _______, SP_BSPC,          _______,
-        _______, _______, WIN    , EUROKEY, RGB_TOG, _______, _______, RGB_UND, _______, _______, _______, _______, _______, QK_BOOT,          _______,
-        CAPS_TG, _______, _______, _______, _______, _______, _______, _______, _______, LINUX  , _______, _______,          _______,          RGB_VAI,
-        _______,          _______, RGB_HUI, _______, _______, _______, NK_TOGG, MACOS  , _______, _______, _______,          _______, RGB_MOD, RGB_VAD,
-        _______, _______, _______,                            KC_MPLY,                            _______, _______, _______, RGB_SPD, RGB_RMOD, RGB_SPI
+        _______, _______, WIN    , EUROKEY, RM_TOGG, _______, _______, RGB_UND, _______, _______, _______, _______, _______, QK_BOOT,          _______,
+        CAPS_TG, _______, _______, _______, _______, _______, _______, _______, _______, LINUX  , _______, _______,          _______,          RM_VALU,
+        _______,          _______, RM_HUEU, _______, _______, _______, NK_TOGG, MACOS  , _______, _______, _______,          _______, RM_NEXT, RM_VALD,
+        _______, _______, _______,                            KC_MPLY,                            _______, _______, _______, RM_SPDD, RM_PREV, RM_SPDU
     ),
     [CAP_LAYER] = LAYOUT(
         USINTL , _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,          _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,          _______,
         _______, _______, _______, DE_EUR , _______, _______, _______, DE_UE  , _______, DE_OE  , _______, _______, _______, _______,          _______,
         _______, DE_AE,   DE_SS  , _______, _______, _______, _______, _______, _______, _______, _______, _______,          _______,          _______,
-        _______,          _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,          _______, KC_PGUP, _______,
-        _______, _______, _______,                            _______,                            _______, _______, _______, KC_HOME, KC_PGDN, KC_END
+        _______,          _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,          _______, _______, _______,
+        _______, _______, _______,                            _______,                            _______, _______, _______, _______, _______, _______
     ),
 
 };
