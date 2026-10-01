@@ -1,3 +1,1 @@
-SRC += process_record.c
-OS_DETECTION_ENABLE = yes
 ENCODER_MAP_ENABLE = yes

@@ -1,4 +1,7 @@
-#include "process_record.h"
+// Copyright 2026 Matteo Ludwig (@mldwg)
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#include "mldwg.h"
 #include <eeprom.h>
 
 static uint16_t spam_key       = KC_TRNS;
@@ -23,35 +26,13 @@ static uint8_t  numlock_attempts = 0;
 // Minimum time (ms) since power-on before a deferred user config write is done.
 #define WRITE_USER_CONFIG_MIN_UPTIME 30000
 
-// Num Lock is kept on (except on macOS, which has none), so the FN keypad
-// number row types digits. Wait for the host's initial LED report and OS
+// Num Lock is kept on (except on macOS, which has none), so the keypad digit
+// keys on the FN layers type digits. Wait for the host's initial LED report and OS
 // detection before acting, and give up after a few taps on hosts that never
 // report Num Lock.
 #define NUMLOCK_STARTUP_DELAY 2000
 #define NUMLOCK_RETRY_MS 500
 #define NUMLOCK_MAX_ATTEMPTS 3
-
-const uint8_t PROGMEM underglow_leds[12] = {67, 68, 70, 71, 76, 77, 83, 84, 87, 88, 91, 92};
-
-// LED indices from g_led_config in keyboards/gmmk/pro/rev1/ansi/ansi.c
-#define LED_INDEX_CAPS 3
-#define LED_INDEX_E 20
-
-typedef union {
-    uint32_t raw;
-    struct {
-        uint8_t version : 8;
-        uint8_t os_variant : 8;
-        bool    rgb_underglow : 1;
-        bool    capslock_remap : 1;
-        // eurokeys is stored per OS, since it only makes sense on some layouts
-        bool    eurokeys_linux : 1;
-        bool    eurokeys_windows : 1;
-        bool    eurokeys_macos : 1;
-        // all lighting off (FN+R), independent of rgb_underglow (FN+U)
-        bool    rgb_off : 1;
-    };
-} user_config_t;
 
 user_config_t user_config;
 bool write_user_config_on_keypress = false;
@@ -137,10 +118,12 @@ void keyboard_post_init_user(void) {
         eeconfig_init_user(); // reset if version mismatch
     }
 
+#ifdef RGB_MATRIX_ENABLE
     // RM_TOGG is handled via user_config.rgb_off; the matrix itself must stay
     // enabled so the indicators keep working. Recovers boards where an earlier
     // RGB toggle persisted "disabled".
     rgb_matrix_enable_noeeprom();
+#endif
 }
 
 void set_mod(uint8_t mod, bool state) {
@@ -606,6 +589,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
+#ifdef RGB_MATRIX_ENABLE
         case RM_TOGG:
             // Never let process_rgb_matrix disable the matrix, see rgb_off.
             if (record->event.pressed) {
@@ -613,6 +597,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 write_user_config();
             }
             return false;
+#endif
 
         case EUROKEY:
             if (record->event.pressed) {
@@ -663,7 +648,8 @@ void matrix_scan_user(void) {
     }
 }
 
-void sidebar_rgb_underglow(uint8_t led_min, uint8_t led_max) {
+#ifdef RGB_MATRIX_ENABLE
+RGB os_color(void) {
     HSV hsv;
     switch (user_config.os_variant) {
         case OS_LINUX:
@@ -683,47 +669,7 @@ void sidebar_rgb_underglow(uint8_t led_min, uint8_t led_max) {
             hsv.s = 255;
             break;
     }
-    hsv.v         = rgb_matrix_get_val(); // follow the user's brightness setting
-    const RGB rgb = hsv_to_rgb(hsv);
-    for (int i = led_min; i < led_max; i++) {
-        RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
-    }
-
-    for (int i = 0; i < 12; i++) {
-        RGB_MATRIX_INDICATOR_SET_COLOR(underglow_leds[i], rgb.r, rgb.g, rgb.b);
-    }
+    hsv.v = rgb_matrix_get_val(); // follow the user's brightness setting
+    return hsv_to_rgb(hsv);
 }
-
-bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
-    if (layer_state_is(FN)) {
-        // While FN is held, the enabled toggles show as white keys. With the
-        // animation on it keeps running underneath, so RGB changes made on the
-        // FN layer are visible right away; otherwise everything but the
-        // underglow is off.
-        if (user_config.rgb_off || !user_config.rgb_underglow) {
-            sidebar_rgb_underglow(led_min, led_max);
-        }
-
-        if (get_eurokeys()) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(LED_INDEX_E, 255, 255, 255);
-        }
-        if (user_config.capslock_remap) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(LED_INDEX_CAPS, 255, 255, 255);
-        }
-        return false;
-    }
-
-    if (user_config.rgb_off) {
-        for (int i = led_min; i < led_max; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
-        }
-        return false;
-    }
-
-    if (!user_config.rgb_underglow) {
-        sidebar_rgb_underglow(led_min, led_max);
-        return false;
-    }
-
-    return false;
-}
+#endif

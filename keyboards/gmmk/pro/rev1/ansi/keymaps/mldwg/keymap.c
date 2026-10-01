@@ -66,3 +66,54 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
     [CAP_LAYER] = { ENCODER_CCW_CW(KC_TRNS, KC_TRNS) }
 };
 #endif
+
+const uint8_t PROGMEM underglow_leds[12] = {67, 68, 70, 71, 76, 77, 83, 84, 87, 88, 91, 92};
+
+// LED indices from g_led_config in keyboards/gmmk/pro/rev1/ansi/ansi.c
+#define LED_INDEX_CAPS 3
+#define LED_INDEX_E 20
+
+void sidebar_rgb_underglow(uint8_t led_min, uint8_t led_max) {
+    const RGB rgb = os_color();
+    for (int i = led_min; i < led_max; i++) {
+        RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
+    }
+
+    for (int i = 0; i < 12; i++) {
+        RGB_MATRIX_INDICATOR_SET_COLOR(underglow_leds[i], rgb.r, rgb.g, rgb.b);
+    }
+}
+
+bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    if (layer_state_is(FN)) {
+        // While FN is held, the enabled toggles show as white keys. With the
+        // animation on it keeps running underneath, so RGB changes made on the
+        // FN layer are visible right away; otherwise everything but the
+        // underglow is off.
+        if (user_config.rgb_off || !user_config.rgb_underglow) {
+            sidebar_rgb_underglow(led_min, led_max);
+        }
+
+        if (get_eurokeys()) {
+            RGB_MATRIX_INDICATOR_SET_COLOR(LED_INDEX_E, 255, 255, 255);
+        }
+        if (user_config.capslock_remap) {
+            RGB_MATRIX_INDICATOR_SET_COLOR(LED_INDEX_CAPS, 255, 255, 255);
+        }
+        return false;
+    }
+
+    if (user_config.rgb_off) {
+        for (int i = led_min; i < led_max; i++) {
+            RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
+        }
+        return false;
+    }
+
+    if (!user_config.rgb_underglow) {
+        sidebar_rgb_underglow(led_min, led_max);
+        return false;
+    }
+
+    return false;
+}
