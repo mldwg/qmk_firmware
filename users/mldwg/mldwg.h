@@ -69,6 +69,11 @@ typedef union {
 extern user_config_t user_config;
 extern uint8_t       spam_delay;
 
+// Per-keymap hook, run first thing in process_record_user
+bool process_record_keymap(uint16_t keycode, keyrecord_t *record);
+
+void release_held_ralt(void);
+
 bool get_eurokeys(void);
 void toggle_eurokeys(void);
 

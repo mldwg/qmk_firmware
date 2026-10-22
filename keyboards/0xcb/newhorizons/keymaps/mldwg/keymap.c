@@ -6,9 +6,9 @@
 // - the top-left key is Grave Escape (Esc, ` with Shift or GUI held), and a
 //   plain ` on FN
 // - F1-F12 are on FN + number row
-// - the media row is on FN2 (hold FN, then RAlt)
-// - the keypad digits are on FN3 (hold FN, then RGui), on the number row as
-//   on the GMMK
+// - the media row is on FN2 (hold FN and RAlt, in either order)
+// - the keypad digits are on FN3 (hold FN and RGui, in either order), on the
+//   number row as on the GMMK
 // - Del is on FN+Backspace, the spam backspace moved to FN3+Backspace
 //
 // Both halves of the split backspace and left shift, and all three spacebar
@@ -56,6 +56,51 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
 };
 // clang-format on
+
+// FN then RAlt/RGui reaches FN2/FN3 through the MO() keys on the FN layer. The
+// other way round the modifier is already down on the base layer when FN comes
+// in, so it is taken back from the host and the layer is turned on here. Either
+// way the layer stays until the RAlt/RGui key is released.
+static bool ralt_held   = false;
+static bool rgui_held   = false;
+static bool fn2_by_ralt = false;
+static bool fn3_by_rgui = false;
+
+bool process_record_keymap(uint16_t keycode, keyrecord_t *record) {
+    bool pressed = record->event.pressed;
+    switch (keycode) {
+        case KC_RALT:
+            ralt_held = pressed;
+            if (!pressed && fn2_by_ralt) {
+                layer_off(FN2);
+                fn2_by_ralt = false;
+            }
+            break;
+        case KC_RGUI:
+            rgui_held = pressed;
+            if (!pressed && fn3_by_rgui) {
+                layer_off(FN3);
+                fn3_by_rgui = false;
+            }
+            break;
+        case MO(FN):
+            if (pressed && ralt_held && !fn2_by_ralt) {
+                release_held_ralt();
+                layer_on(FN2);
+                fn2_by_ralt = true;
+            }
+            if (pressed && rgui_held && !fn3_by_rgui) {
+                tap_code(KC_RCTL); // so Windows does not open the Start menu
+                unregister_mods(MOD_BIT(KC_RGUI));
+                layer_on(FN3);
+                fn3_by_rgui = true;
+            }
+            break;
+        default:
+            break;
+    }
+    return true;
+}
 
 // The New Horizons only has underglow LEDs, so the GMMK's white E and Caps
 // keys become the underglow LEDs closest to them (rgb_matrix.layout in

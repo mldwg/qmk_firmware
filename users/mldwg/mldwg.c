@@ -164,6 +164,19 @@ bool use_alt_r_flip(void) {
     return user_config.os_variant == OS_LINUX && !get_eurokeys();
 }
 
+// Takes right alt back from the host while its key stays held, e.g. when the
+// key turns into a layer key. Tapping right ctrl first keeps Windows from
+// treating the lone alt as a tap that opens the menu bar.
+void release_held_ralt(void) {
+    tap_code(KC_RCTL);
+    if (use_alt_r_flip()) {
+        alt_r_pressed = false;
+        set_mod(MOD_BIT(KC_RALT), alt_r_flipped);
+    } else if (!caps_dy_altgr_held) {
+        unregister_mods(MOD_BIT(KC_RALT));
+    }
+}
+
 bool press_with_flipped_atr_r_ex(uint16_t keycode, keyrecord_t *record, bool condition) {
     if (record->event.pressed) {
         if (condition) {
@@ -460,8 +473,16 @@ void process_fn_globe(keyrecord_t *record) {
     }
 }
 
+__attribute__((weak)) bool process_record_keymap(uint16_t keycode, keyrecord_t *record) {
+    return true;
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     uint8_t mods = get_mods();
+
+    if (!process_record_keymap(keycode, record)) {
+        return false;
+    }
 
     if (keycode == MO(FN)) {
         if (user_config.os_variant == OS_MACOS) {
